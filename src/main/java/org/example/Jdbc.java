@@ -17,7 +17,7 @@ public class Jdbc {
 
 //step2 create  the connection object
             Connection con = DriverManager.getConnection(
-                    "system@//localhost:1521/orcl", "system", "student");
+                    "jdbc:oracle:thin:@localhost:1521:orcl", "system", "student");
 
 //step3 create the statement object
             Statement stmt = con.createStatement();
@@ -49,7 +49,7 @@ public class Jdbc {
 
 //step2 create  the connection object
             Connection con = DriverManager.getConnection(
-                    "system@//localhost:1521/orcl", "system", "student");
+                    "jdbc:oracle:thin:@localhost:1521:orcl", "system", "student");
 
 
             Statement statement = con.createStatement();
@@ -81,7 +81,7 @@ public class Jdbc {
 
 //step2 create  the connection object
             Connection con = DriverManager.getConnection(
-                    "system@//localhost:1521/orcl", "system", "student");
+                    "jdbc:oracle:thin:@localhost:1521:orcl", "system", "student");
 
 //step3 create the statement object
             Statement stmt = con.createStatement();
@@ -111,7 +111,7 @@ public class Jdbc {
 
 //step2 create  the connection object
             Connection con = DriverManager.getConnection(
-                    "system@//localhost:1521/orcl", "system", "student");
+                    "jdbc:oracle:thin:@localhost:1521:orcl", "system", "student");
 
 //step3 create the statement object
             Statement stmt = con.createStatement();
@@ -141,7 +141,7 @@ public class Jdbc {
 
 //step2 create  the connection object
             Connection con = DriverManager.getConnection(
-                    "system@//localhost:1521/orcl", "system", "student");
+                    "jdbc:oracle:thin:@localhost:1521:orcl", "system", "student");
 
 //step3 create the statement object
             Statement stmt = con.createStatement();
