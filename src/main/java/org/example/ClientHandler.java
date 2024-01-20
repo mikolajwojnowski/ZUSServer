@@ -2,6 +2,8 @@ package org.example;
 import java.io.*;
 import java.net.Socket;
 import java.sql.*;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Random;
 import org.mindrot.jbcrypt.BCrypt;
 
@@ -36,7 +38,7 @@ public class ClientHandler implements Runnable {
             switch(commandType)
             {
                 case "SELECT":
-                    handleSelectQuery(zapytanieOdKlienta,connection,writer);
+                   // handleSelectQuery(zapytanieOdKlienta,connection,writer);
                     break;
                 case "INSERT":
                     break;
@@ -51,6 +53,21 @@ public class ClientHandler implements Runnable {
                     break;
                 case "LOGIN":
                     handleLoginQuery(zapytanieOdKlienta,connection,writer);
+                    break;
+                case "FORGOT_PASSWORD":
+                    ForgotPassword(zapytanieOdKlienta,connection,writer);
+                    break;
+                case "UPDATE_PASSWORD":
+                    updatePassword(zapytanieOdKlienta,connection,writer);
+                    break;
+                case "PROFILE_INFO":
+                    ProfileInfoQuery(zapytanieOdKlienta,connection,writer);
+                    break;
+                case "OPLAC_SKLADKE":
+                    OplacSkladke(zapytanieOdKlienta,connection,writer);
+                    break;
+
+
                 default:
                     writer.println("unsupported command type");
 
@@ -80,28 +97,82 @@ public class ClientHandler implements Runnable {
 
     }
 
-    //TODO dla jakiegos zapytania
-    private void handleSelectQuery(String query, Connection connection, PrintWriter writer) throws SQLException {
+    //insert wartosci skladki oplaconej
 
-        String zapytanieDoBazy = "SELECT * FROM Podatnik WHERE kolumna = ?";
+    private void OplacSkladke(String userData,Connection connection, PrintWriter writer) throws  SQLException{
+        String zapytanieDoBazy = "INSERT INTO Wplaty (pesel,data_wplaty,wartosc_wplaty) VALUES (?,TO_DATE(?, 'YYYY-MM-DD'),?)";
+
+        String[] userDataArray = userData.split(" ");
+
+        // Extract data from user data
+        String  wartosc_wplaty = userDataArray[0];
+        String data_wplaty = userDataArray[1];
+        String pesel = userDataArray[2];
+
         PreparedStatement preparedStatement = connection.prepareStatement(zapytanieDoBazy);
-        preparedStatement.setString(1, query);
+        preparedStatement.setString(1, pesel);
+        preparedStatement.setString(2,data_wplaty);
+        preparedStatement.setString(3,wartosc_wplaty);
 
-        // Wykonanie bezpiecznego zapytania do bazy danych
-        ResultSet resultSet = preparedStatement.executeQuery();
+        // Execute the insert query
+        int rowsAffected = preparedStatement.executeUpdate();
 
-        // Przetwarzanie wyników i wysyłanie odpowiedzi do klienta
-        while (resultSet.next()) {
-            // Przykładowe przetwarzanie wyników
-            String wynik = resultSet.getString("kolumna");
-            // Możesz wysłać wynik do klienta
-            writer.println(wynik);
+        // Check if the registration was successful
+        if (rowsAffected > 0) {
+            writer.println("Oplacono");
+        } else {
+            writer.println("Wystapil blad przy placaniu skaldki");
         }
 
-        // Zamknięcie zasobów
-        resultSet.close();
+        // Close resources
         preparedStatement.close();
+
+
+
     }
+    //wyswietlanie informacji o profilu
+    private void ProfileInfoQuery(String pesel, Connection connection, PrintWriter writer) throws SQLException {
+
+
+            String zapytanieDoBazy = "SELECT haslo, email, imie, nazwisko FROM Podatnik WHERE pesel = ?";
+            PreparedStatement preparedStatement = connection.prepareStatement(zapytanieDoBazy);
+            preparedStatement.setString(1, pesel);
+
+            // Wykonanie bezpiecznego zapytania do bazy danych
+            ResultSet resultSet = preparedStatement.executeQuery();
+
+            // Przetwarzanie wyników
+            StringBuilder resultString = new StringBuilder();
+
+            while (resultSet.next()) {
+                // Pobieranie danych z kolumn
+                String email = resultSet.getString("email");
+                String imie = resultSet.getString("imie");
+                String nazwisko = resultSet.getString("nazwisko");
+                String haslo = resultSet.getString("haslo");
+
+                // Dodawanie danych do ciągu tekstowego
+                resultString.append(email).append(" ");
+                resultString.append(imie).append(" ");
+                resultString.append(nazwisko).append(" ");
+                resultString.append(haslo).append(" ");
+            }
+            String odp = resultString.toString().trim();
+            if(!odp.isEmpty())
+            {
+                writer.println(odp);
+            }else {
+                writer.println("Brak danych dla tego peselu");
+            }
+
+
+            // Zamknięcie zasobów
+            resultSet.close();
+            preparedStatement.close();
+
+
+
+        }
 
     //FUNKCJA DO INSERT TODO insert
     private void handleInsertQuery(String query, Connection connection, PrintWriter writer) throws SQLException {
@@ -113,11 +184,27 @@ public class ClientHandler implements Runnable {
 
 
     //funkcja do UPDATE TODO update
-    private void handleUpdateQuery(String query, Connection connection, PrintWriter writer) throws SQLException {
-        // Obsługa zapytania UPDATE
-        // ...
-        // Możesz dostosować tę część kodu do obsługi zapytania UPDATE
-        writer.println("UPDATE operation executed");
+    private void updatePassword(String userData, Connection connection, PrintWriter writer) throws SQLException {
+
+        String zapytanieDoBazy = "UPDATE Podatnik SET haslo = ? WHERE email = ?";
+
+        String[] userDataArray = userData.split(" ");
+
+        // Extract password and email from user data
+        String haslo = userDataArray[0];
+        String email = userDataArray[1];
+
+        PreparedStatement preparedStatement = connection.prepareStatement(zapytanieDoBazy);
+        preparedStatement.setString(1, haslo);
+        preparedStatement.setString(2,email);
+
+        int rowsAffected = preparedStatement.executeUpdate();
+        if (rowsAffected > 0) {
+            writer.println("UPDATED");
+        } else {
+            writer.println("NO-UPDATED");
+        }
+
     }
 
 
@@ -212,6 +299,45 @@ public class ClientHandler implements Runnable {
         return enteredPassword.equals(storedPassword);
     }
 
+    private void ForgotPassword(String userData, Connection connection, PrintWriter writer) throws SQLException {
+        // Split user data received from the client
+        String[] userDataArray = userData.split(" ");
+
+
+        // Extract pesel and password from user data
+        String email = userDataArray[0];
+
+
+        // Query to check if user with given pesel and password exists in the database
+        String forgotQuery = "SELECT * FROM Podatnik WHERE email = ?";
+        PreparedStatement preparedStatement = connection.prepareStatement(forgotQuery);
+        preparedStatement.setString(1, email);
+
+        // Execute the forgotPassword query
+        ResultSet resultSet = preparedStatement.executeQuery();
+
+        if (resultSet.next()) {
+            // User with pesel exists, now compare the passwords
+            String storedEmail = resultSet.getString("email");
+
+            if (email.equals(storedEmail)) {
+                // email match, send verification code for change password
+                writer.println("existing");
+            } else {
+                // Passwords don't match, login failed
+                writer.println("non-existing");
+            }
+        }
+        else {
+            writer.println("non-existing");
+
+        }
+
+        // Close resources
+        resultSet.close();
+        preparedStatement.close();
+    }
 
 
 }
+
