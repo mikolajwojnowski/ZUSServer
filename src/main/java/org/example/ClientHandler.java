@@ -49,7 +49,7 @@ public class ClientHandler implements Runnable {
                     break;
                 case "REGISTER_SUCCESS":
                     String[] userData = zapytanieOdKlienta.split(" ");
-                    handleRegisterSuccess(userData[0],userData[1],userData[2],userData[3],userData[4],connection,writer);
+                    handleRegisterSuccess(userData[0],userData[1],userData[2],userData[3],userData[4],userData[5],userData[6],connection,writer);
                     break;
                 case "LOGIN":
                     handleLoginQuery(zapytanieOdKlienta,connection,writer);
@@ -65,6 +65,15 @@ public class ClientHandler implements Runnable {
                     break;
                 case "OPLAC_SKLADKE":
                     OplacSkladke(zapytanieOdKlienta,connection,writer);
+                    break;
+                case "WYSLIJ_PODANIE":
+                    WyslijPodanie(zapytanieOdKlienta,connection,writer);
+                    break;
+                case "WPLATY_INFO":
+                    WplatyInfo(zapytanieOdKlienta,connection,writer);
+                    break;
+                case "WPLATY_INFO_AVG":
+                    WplatyInfoAvg(zapytanieOdKlienta,connection,writer);
                     break;
 
 
@@ -130,11 +139,33 @@ public class ClientHandler implements Runnable {
 
 
     }
+    private void WyslijPodanie(String userData,Connection connection,PrintWriter writer) throws SQLException{
+        String zapytanieDoBazy = "INSERT INTO Liczba_poda(liczba,nazwa) VALUES(?,?)";
+        PreparedStatement preparedStatement = connection.prepareStatement(zapytanieDoBazy);
+        String[] userDataArray = userData.split(" ");
+
+        // Extract data from user data
+        String  pesel = userDataArray[0];
+        String nazwa = userDataArray[1];
+
+        preparedStatement.setString(1,pesel);
+        preparedStatement.setString(2,nazwa);
+        int rowsAffected = preparedStatement.executeUpdate();
+
+        // Check if the registration was successful
+        if (rowsAffected > 0) {
+            writer.println("DodanoPodanie");
+        } else {
+            writer.println("Failed.");
+        }
+
+        // Close resources
+        preparedStatement.close();
+    }
     //wyswietlanie informacji o profilu
     private void ProfileInfoQuery(String pesel, Connection connection, PrintWriter writer) throws SQLException {
 
-
-            String zapytanieDoBazy = "SELECT haslo, email, imie, nazwisko FROM Podatnik WHERE pesel = ?";
+            String zapytanieDoBazy = "SELECT haslo, email, imie, nazwisko, wiek, plec FROM Podatnik WHERE pesel = ?";
             PreparedStatement preparedStatement = connection.prepareStatement(zapytanieDoBazy);
             preparedStatement.setString(1, pesel);
 
@@ -150,12 +181,16 @@ public class ClientHandler implements Runnable {
                 String imie = resultSet.getString("imie");
                 String nazwisko = resultSet.getString("nazwisko");
                 String haslo = resultSet.getString("haslo");
+                String wiek = resultSet.getString("wiek");
+                String plec = resultSet.getString("plec");
 
                 // Dodawanie danych do ciągu tekstowego
                 resultString.append(email).append(" ");
                 resultString.append(imie).append(" ");
                 resultString.append(nazwisko).append(" ");
                 resultString.append(haslo).append(" ");
+                resultString.append(wiek).append(" ");
+                resultString.append(plec);
             }
             String odp = resultString.toString().trim();
             if(!odp.isEmpty())
@@ -206,6 +241,20 @@ public class ClientHandler implements Runnable {
         }
 
     }
+    private void selectDataForInformationPanel(String pesel, Connection connection, PrintWriter writer) throws SQLException {
+        String zapytanieDoBazy = "SELECT  FROM Podatnik WHERE pesel = ?";
+        PreparedStatement preparedStatement = connection.prepareStatement(zapytanieDoBazy);
+        preparedStatement.setString(1, pesel);
+
+        // Wykonanie bezpiecznego zapytania do bazy danych
+        ResultSet resultSet = preparedStatement.executeQuery();
+
+
+
+        // Zamknięcie zasobów
+        resultSet.close();
+        preparedStatement.close();
+    }
 
 
     //FUNKCJA DO SPRAWDZENIE CZY PESEL JEST JUZ ZAREJESTROWANY
@@ -232,15 +281,18 @@ public class ClientHandler implements Runnable {
     }
 
     //FUNKCJA DO PRZESLANIA DANYCH GDY REJESTRACJA PRZEBIEGLA POMYSLNIE
-    private void handleRegisterSuccess(String pesel, String haslo, String email, String imie, String nazwisko, Connection connection, PrintWriter writer) throws SQLException {
+    private void handleRegisterSuccess(String pesel, String haslo, String email, String imie, String nazwisko,String wiek,String plec, Connection connection, PrintWriter writer) throws SQLException {
         // Insert user information into the database
-        String insertQuery = "INSERT INTO Podatnik (pesel, haslo, email, imie, nazwisko) VALUES (?, ?, ?, ?, ?)";
+        String insertQuery = "INSERT INTO Podatnik (pesel, haslo, email, imie, nazwisko,wiek,plec) VALUES (?, ?, ?, ?, ?,?,?)";
         PreparedStatement preparedStatement = connection.prepareStatement(insertQuery);
         preparedStatement.setString(1, pesel);
         preparedStatement.setString(2, haslo);
         preparedStatement.setString(3, email);
         preparedStatement.setString(4, imie);
         preparedStatement.setString(5, nazwisko);
+        preparedStatement.setString(6,wiek);
+        preparedStatement.setString(7,plec);
+
 
         // Execute the insert query
         int rowsAffected = preparedStatement.executeUpdate();
@@ -338,6 +390,72 @@ public class ClientHandler implements Runnable {
         preparedStatement.close();
     }
 
+    private void WplatyInfo(String pesel, Connection connection, PrintWriter writer) throws SQLException {
+
+
+        String zapytanieDoBazy = "SELECT SUM(wartosc_wplaty) FROM Wplaty WHERE pesel = ?";
+        PreparedStatement preparedStatement = connection.prepareStatement(zapytanieDoBazy);
+        preparedStatement.setString(1, pesel);
+
+        // Wykonanie bezpiecznego zapytania do bazy danych
+        ResultSet resultSet = preparedStatement.executeQuery();
+
+        if (resultSet.next()) {
+            // Access the result using position or uppercase name
+            String suma = resultSet.getString(1);
+            // or
+            // String suma = resultSet.getString("SUM(WARTOSC_WPLATY)");
+
+            writer.println(suma);
+        } else {
+            // Handle the case when no rows are returned
+            writer.println("No data found for the specified condition");
+        }
+
+
+
+
+        // Zamknięcie zasobów
+        resultSet.close();
+        preparedStatement.close();
+
+
+
+    }
+    private void WplatyInfoAvg(String pesel, Connection connection, PrintWriter writer) throws SQLException {
+
+
+        String zapytanieDoBazy = "SELECT AVG(wartosc_wplaty) FROM Wplaty WHERE pesel = ?";
+        PreparedStatement preparedStatement = connection.prepareStatement(zapytanieDoBazy);
+        preparedStatement.setString(1, pesel);
+
+        // Wykonanie bezpiecznego zapytania do bazy danych
+        ResultSet resultSet = preparedStatement.executeQuery();
+
+
+        if (resultSet.next()) {
+            // Access the result using position or uppercase name
+            String avg = resultSet.getString(1);
+            // or
+            // String suma = resultSet.getString("SUM(WARTOSC_WPLATY)");
+
+            writer.println(avg);
+        } else {
+            // Handle the case when no rows are returned
+            writer.println("No data found for the specified condition");
+        }
+
+
+
+
+
+        // Zamknięcie zasobów
+        resultSet.close();
+        preparedStatement.close();
+
+
+
+    }
 
 }
 
